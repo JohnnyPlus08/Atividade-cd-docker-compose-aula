@@ -67,7 +67,7 @@ jobs:
               exit 0
             fi
 
-            echo "Tentativa $i de 40. Aguardando a aplicacao..."
+            echo "Tentativa $i de 10. Aguardando a aplicacao..."
             sleep 3
           done
 
@@ -81,6 +81,7 @@ jobs:
         run: docker compose down -v
 
   # 3. DEPLOY NO AZURE
+  
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -98,15 +99,27 @@ jobs:
           envs: PROD_DB_PASSWORD,PROD_DB_ROOT_PASSWORD
           script: |
             set -e
-            cd /home/ubuntu/aula-mural-flask
+
+            PROJECT_DIR=/home/ubuntu/aula-mural-flask
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+
+            # Clona o projeto se ainda não existir na VM
+            if [ ! -d "$PROJECT_DIR/.git" ]; then
+              git clone "$REPO_URL" "$PROJECT_DIR"
+            fi
+
+            cd "$PROJECT_DIR"
+
+            # Atualiza o código
             git pull origin main
 
-            # Cria/atualiza .env na VM com credenciais de produção.
-            # Use senhas sem aspas simples ou quebras de linha neste exemplo.
+            # Cria o .env com as credenciais de produção
             umask 077
-            printf "DB_PASSWORD='%s'\\nDB_ROOT_PASSWORD='%s'\\n" "$PROD_DB_PASSWORD" "$PROD_DB_ROOT_PASSWORD" > .env
+            printf "DB_PASSWORD='%s'\nDB_ROOT_PASSWORD='%s'\n" \
+              "$PROD_DB_PASSWORD" "$PROD_DB_ROOT_PASSWORD" > .env
             chmod 600 .env
 
+            # Atualiza os containers
             docker compose config -q
             docker compose pull
             docker compose up -d --no-build --remove-orphans
