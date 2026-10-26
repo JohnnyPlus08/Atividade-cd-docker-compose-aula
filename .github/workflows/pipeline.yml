@@ -60,12 +60,21 @@ jobs:
 
       - name: Testar resposta HTTP
         run: |
-          if ! curl --fail --silent --show-error \
-            --retry 20 --retry-delay 3 --retry-connrefused \
-            http://localhost:8081/; then
-            docker compose logs
-            exit 1
-          fi
+          for i in $(seq 1 40); do
+            if curl --fail --silent --output /dev/null \
+              http://localhost:8081/; then
+              echo "Aplicacao respondeu com sucesso!"
+              exit 0
+            fi
+
+            echo "Tentativa $i de 40. Aguardando a aplicacao..."
+            sleep 3
+          done
+
+          echo "A aplicacao nao respondeu no tempo esperado."
+          docker compose ps -a
+          docker compose logs --no-color app db
+          exit 1
 
       - name: Encerrar containers
         if: always()
