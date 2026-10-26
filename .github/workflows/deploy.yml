@@ -1,0 +1,104 @@
+name: CI/CD com Docker Compose
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    env:
+      # Valores temporários para resolver as variáveis do Compose.
+      # Este job não inicia o MariaDB.
+      DB_PASSWORD: build-placeholder
+      DB_ROOT_PASSWORD: build-placeholder
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar Compose
+        run: docker compose config -q
+
+      - name: Build da imagem
+        run: docker compose build app
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Publicar imagem
+        run: docker compose push app
+
+  # 2. BAIXAR E TESTAR A IMAGEM PUBLICADA
+  test:
+    needs: build-publish
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+      DB_ROOT_PASSWORD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Baixar imagem publicada
+        run: docker compose pull app
+
+      - name: Subir aplicação e banco
+        run: docker compose up -d --no-build db app
+
+      - name: Testar resposta HTTP
+        run: |
+          if ! curl --fail --silent --show-error \
+            --retry 20 --retry-delay 3 --retry-connrefused \
+            http://localhost:8081/; then
+            docker compose logs
+            exit 1
+          fi
+
+      - name: Encerrar containers
+        if: always()
+        run: docker compose down -v
+
+  # 3. DEPLOY NO AZURE
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy no Azure
+        uses: appleboy/ssh-action@v1
+        env:
+          PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          PROD_DB_ROOT_PASSWORD: ${{ secrets.PROD_DB_ROOT_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: PROD_DB_PASSWORD,PROD_DB_ROOT_PASSWORD
+          script: |
+            set -e
+            cd /home/ubuntu/aula-mural-flask
+            git pull origin main
+
+            # Cria/atualiza .env na VM com credenciais de produção.
+            # Use senhas sem aspas simples ou quebras de linha neste exemplo.
+            umask 077
+            printf "DB_PASSWORD='%s'\\nDB_ROOT_PASSWORD='%s'\\n" "$PROD_DB_PASSWORD" "$PROD_DB_ROOT_PASSWORD" > .env
+            chmod 600 .env
+
+            docker compose config -q
+            docker compose pull
+            docker compose up -d --no-build --remove-orphans
+            docker compose ps
