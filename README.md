@@ -17,8 +17,7 @@ Não inclui healthcheck nem observabilidade nesta etapa da aula.
 ## Preparação
 
 1. Crie um repositório no GitHub e envie os arquivos para a branch `main`.
-2. Crie no Docker Hub um repositório chamado `mural-flask`.
-3. Em `docker-compose.yml`, substitua `SEU_USUARIO_DOCKERHUB` pelo usuário real do Docker Hub.
+2. Crie no Docker Hub o repositório `johnny/mural-flask` (ou ajuste o namespace da imagem em `docker-compose.yml` para o seu usuário Docker Hub).
 4. Em GitHub → Settings → Secrets and variables → Actions, crie:
    - `DOCKERHUB_USERNAME`
    - `DOCKERHUB_TOKEN`
