@@ -11,7 +11,7 @@ services:
       DB_USER: mural_user
       DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      - db
+      - db01
     restart: unless-stopped
 
   db01:
