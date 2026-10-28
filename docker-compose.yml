@@ -3,7 +3,7 @@ services:
     build: .
     image: johnnyplus/mural-flask:latest
     ports:
-      - "89:5001"
+      - "89:5000"
     environment:
       DB_HOST: db
       DB_PORT: "3306"
