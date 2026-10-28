@@ -1,9 +1,9 @@
 services:
-  app01:
+  app:
     build: .
     image: johnnyplus/mural-flask:latest
     ports:
-      - "89:5000"
+      - "89:5001"
     environment:
       DB_HOST: db
       DB_PORT: "3306"
@@ -11,10 +11,10 @@ services:
       DB_USER: mural_user
       DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      - db01
+      - db
     restart: unless-stopped
 
-  db01:
+  db:
     image: mariadb:11
     environment:
       MARIADB_DATABASE: mural
