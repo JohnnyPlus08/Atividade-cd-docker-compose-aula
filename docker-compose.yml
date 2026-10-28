@@ -1,5 +1,5 @@
 services:
-  app:
+  app01:
     build: .
     image: johnnyplus/mural-flask:latest
     ports:
@@ -14,7 +14,7 @@ services:
       - db
     restart: unless-stopped
 
-  db:
+  db01:
     image: mariadb:11
     environment:
       MARIADB_DATABASE: mural
